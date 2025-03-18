@@ -1,6 +1,7 @@
 import javafx.application.Application;
 import javafx.beans.property.*;
 import javafx.beans.value.ObservableValue;
+import javafx.scene.input.KeyCode;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.StackPane;
@@ -133,6 +134,9 @@ public class DynamicTreeTableExample extends Application {
         // Create the TreeTableView
         TreeTableView<TreeNode> treeTableView = new TreeTableView<>(root);
         treeTableView.setShowRoot(false);
+        
+		//treeTableView.getEventHandlers().forEach(System.out::println);
+		//System.out.println(treeTableView.getOnKeyTyped());
 
         // Create columns dynamically based on headers
         for (int i = 0; i < headers.length; i++) {
@@ -216,6 +220,26 @@ public class DynamicTreeTableExample extends Application {
                     break;
             }
         }
+		// add shift+arrow deep expansion/collapse
+		treeTableView.setOnKeyPressed(event -> {
+            if (event.isShiftDown()) {
+                if (event.getCode() == KeyCode.RIGHT) {
+                    // Deep expand the selected row
+                    TreeItem<TreeNode> selectedItem = treeTableView.getSelectionModel().getSelectedItem();
+                    if (selectedItem != null) {
+                        expandAll(selectedItem);
+                    }
+                    event.consume();
+                } else if (event.getCode() == KeyCode.LEFT) {
+                    // Deep collapse the selected row
+                    TreeItem<TreeNode> selectedItem = treeTableView.getSelectionModel().getSelectedItem();
+                    if (selectedItem != null) {
+                        collapseAll(selectedItem);
+                    }
+                    event.consume();
+                }
+            }
+        });
 
         // Set up the scene
         StackPane rootPane = new StackPane();
@@ -226,6 +250,25 @@ public class DynamicTreeTableExample extends Application {
         primaryStage.setTitle("Dynamic TreeTable from TSV");
         primaryStage.setScene(scene);
         primaryStage.show();
+    }
+	// Recursively expand all nodes
+    private void expandAll(TreeItem<?> item) {
+        if (item != null && !item.isLeaf()) {
+            item.setExpanded(true);
+            for (TreeItem<?> child : item.getChildren()) {
+                expandAll(child);
+            }
+        }
+    }
+
+    // Recursively collapse all nodes
+    private void collapseAll(TreeItem<?> item) {
+        if (item != null && !item.isLeaf()) {
+            item.setExpanded(false);
+            for (TreeItem<?> child : item.getChildren()) {
+                collapseAll(child);
+            }
+        }
     }
 
     public static void main(String[] args) {
