@@ -24,13 +24,15 @@ public class DynamicTreeTableExample extends Application {
 
                 switch (type) {
                     case "double":
-                        try {
-							properties.put(header, new SimpleDoubleProperty(Double.parseDouble(value)));
-						} catch (Exception e) {
+						try {
+							// Parse the value as a Number (supports both integer and decimal)
+							Number number = Double.parseDouble(value);
+							properties.put(header, new SimpleObjectProperty<Number>(number));
+						} catch (NumberFormatException | NullPointerException  e) {
 							// Handle invalid or empty values as NaN
-							properties.put(header, new SimpleDoubleProperty(Double.NaN));
+							properties.put(header, new SimpleObjectProperty<Number>(Double.NaN));
 						}
-                        break;
+						break;
                     case "boolean":
                         properties.put(header, new SimpleBooleanProperty(Boolean.parseBoolean(value)));
                         break;
@@ -139,14 +141,32 @@ public class DynamicTreeTableExample extends Application {
 
             switch (type) {
                 case "double":
-                    TreeTableColumn<TreeNode, Double> doubleColumn = new TreeTableColumn<>(header);
-                    doubleColumn.setCellValueFactory(param -> {
-                        Property<?> property = param.getValue().getValue().getProperty(header);
-                        return (ObservableValue<Double>) property;
-                    });
-                    doubleColumn.setSortable(true);
-                    treeTableView.getColumns().add(doubleColumn);
-                    break;
+					TreeTableColumn<TreeNode, Number> doubleColumn = new TreeTableColumn<>(header);
+					doubleColumn.setCellValueFactory(param -> {
+						Property<?> property = param.getValue().getValue().getProperty(header);
+						return (ObservableValue<Number>) property;
+					});
+					doubleColumn.setCellFactory(col -> new TreeTableCell<TreeNode, Number>() {
+						@Override
+						protected void updateItem(Number item, boolean empty) {
+							super.updateItem(item, empty);
+							if (empty || item == null) {
+								setText(""); // Render empty cells as blank
+							} else if (Double.isNaN(item.doubleValue())) {
+								setText(""); // Render NaN values as "NaN"
+							} else {
+								// Display the number as-is (e.g., 10 instead of 10.0 for integers)
+								if (item.doubleValue() == item.intValue()) {
+									setText(String.valueOf(item.intValue())); // Display as integer
+								} else {
+									setText(String.valueOf(item.doubleValue())); // Display as double
+								}
+							}
+						}
+					});
+					doubleColumn.setSortable(true);
+					treeTableView.getColumns().add(doubleColumn);
+					break;
                 case "boolean":
                     TreeTableColumn<TreeNode, Boolean> booleanColumn = new TreeTableColumn<>(header);
                     booleanColumn.setCellValueFactory(param -> {
