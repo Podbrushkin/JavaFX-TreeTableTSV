@@ -3,29 +3,33 @@ import javafx.beans.property.*;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.TreeItemPropertyValueFactory;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.net.URI;
 import java.util.*;
+import java.net.URI;
 
 public class DynamicTreeTableExample extends Application {
 
     public static class TreeNode {
         private final Map<String, Property<?>> properties = new HashMap<>();
 
-        public TreeNode(String[] headers, String[] values, Map<String, String> columnTypes) {
+        public TreeNode(String[] headers, String[] values, String[] columnTypes) {
             for (int i = 0; i < headers.length; i++) {
                 String header = headers[i];
                 String value = values[i];
-                String type = columnTypes.getOrDefault(header, "string");
+                String type = columnTypes[i];
 
                 switch (type) {
                     case "double":
-                        properties.put(header, new SimpleDoubleProperty(Double.parseDouble(value)));
+                        try {
+							properties.put(header, new SimpleDoubleProperty(Double.parseDouble(value)));
+						} catch (Exception e) {
+							// Handle invalid or empty values as NaN
+							properties.put(header, new SimpleDoubleProperty(Double.NaN));
+						}
                         break;
                     case "boolean":
                         properties.put(header, new SimpleBooleanProperty(Boolean.parseBoolean(value)));
@@ -52,39 +56,29 @@ public class DynamicTreeTableExample extends Application {
         Parameters params = getParameters();
         List<String> args = params.getRaw();
         if (args.size() < 5) {
-            System.err.println("Usage: java DynamicTreeTableExample <tsvFile> <idColumn> <parentOrChildColumn> <delimiter> <mode> [columnTypes]");
+            System.err.println("Usage: java DynamicTreeTableExample <idColumn> <parentOrChildColumn> <delimiter> <mode> <columnTypes> [file]");
             System.err.println("Mode: 'parent' for parentId, 'child' for childId");
-            System.err.println("columnTypes: Optional. Format: column1:type,column2:type,... (types: string, double, boolean, url)");
-            System.err.println("java -jar JavaFXTreeTableTSV-0.1-shaded.jar myfile.tsv item parentId `t parent item:url");
+            System.err.println("columnTypes: Comma-separated list of types (string, double, boolean, url)");
+            System.err.println("file: Path to TSV file or '-' to read from STDIN");
             System.exit(1);
         }
 
-        String tsvFile = args.get(0);
-        String idColumn = args.get(1);
-        String parentOrChildColumn = args.get(2);
-        String delimiter = args.get(3);
-        String mode = args.get(4);
-
-        // Parse column types
-        Map<String, String> columnTypes = new HashMap<>();
-        if (args.size() > 5) {
-            for (String typeMapping : args.get(5).split(",")) {
-                String[] parts = typeMapping.split(":");
-                if (parts.length == 2) {
-                    columnTypes.put(parts[0], parts[1]);
-                }
-            }
-        }
+        String idColumn = args.get(0);
+        String parentOrChildColumn = args.get(1);
+        String delimiter = args.get(2);
+        String mode = args.get(3);
+        String[] columnTypes = args.get(4).split(",");
+        String filePath = args.size() > 5 ? args.get(5) : "-";
 
         if (!mode.equals("parent") && !mode.equals("child")) {
             System.err.println("Invalid mode. Use 'parent' or 'child'.");
             System.exit(1);
         }
 
-        // Read the TSV file
+        // Read the TSV file or STDIN
         List<TreeNode> nodes = new ArrayList<>();
         String[] headers = null;
-        try (Scanner scanner = new Scanner(new File(tsvFile))) {
+        try (Scanner scanner = filePath.equals("-") ? new Scanner(System.in) : new Scanner(new File(filePath))) {
             if (scanner.hasNextLine()) {
                 headers = scanner.nextLine().split(delimiter, -1); // Use -1 to avoid index issues
             }
@@ -93,7 +87,7 @@ public class DynamicTreeTableExample extends Application {
                 nodes.add(new TreeNode(headers, values, columnTypes));
             }
         } catch (FileNotFoundException e) {
-            System.err.println("File not found: " + tsvFile);
+            System.err.println("File not found: " + filePath);
             System.exit(1);
         }
 
@@ -139,8 +133,9 @@ public class DynamicTreeTableExample extends Application {
         treeTableView.setShowRoot(false);
 
         // Create columns dynamically based on headers
-        for (String header : headers) {
-            String type = columnTypes.getOrDefault(header, "string");
+        for (int i = 0; i < headers.length; i++) {
+            String header = headers[i];
+            String type = columnTypes[i];
 
             switch (type) {
                 case "double":
@@ -173,15 +168,15 @@ public class DynamicTreeTableExample extends Application {
                             super.updateItem(item, empty);
                             if (item == null || empty) {
                                 setText(null);
-                                setStyle("");
                             } else {
                                 setText(item);
-                                setStyle("-fx-text-fill: blue; -fx-underline: true;");
                                 setOnMouseClicked(event -> {
-                                    try {
-                                        java.awt.Desktop.getDesktop().browse(new URI(item));
-                                    } catch (Exception e) {
-                                        e.printStackTrace();
+                                    if (event.getClickCount() == 2) { // Double-click to open URL
+                                        try {
+                                            java.awt.Desktop.getDesktop().browse(new URI(item));
+                                        } catch (Exception e) {
+                                            e.printStackTrace();
+                                        }
                                     }
                                 });
                             }
