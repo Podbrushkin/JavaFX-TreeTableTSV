@@ -7,13 +7,43 @@ import javafx.scene.control.*;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.*;
 import java.net.URI;
 import java.nio.file.Path;
 
-public class DynamicTreeTableExample extends Application {
+public class TreeTableTsvFx extends Application {
+    private static String help = """
+    Usage: java -jar FXTreeTableTSV.jar <delimiter> [<idColumn> <parentColumn>] [--column-types=<columnTypes>] <file>
+        columnTypes: Optional. Comma-separated list of types (string, double, boolean, url). Default: all String
+        idColumn, parentColumn: Optional pair. Column names where id of node and id of parent are specified. Default: first and last columns.
+        file: Path to TSV file or '-' to read from STDIN
+    Examples (Powershell syntax):
+        java -jar .\\target\\JavaFXTreeTableTSV-0.1-shaded.jar `t myfile.tsv
+        java -jar FXTreeTableTSV.jar `t id parentId myfile.tsv
+        cat myfile.tsv | java -jar FXTreeTableTSV.jar --delimiter=`t --column-types=url,string,double,string -
+        # Build and display a file tree:
+        Get-ChildItem -Recurse | select @{n='id';e='FullName'},Length,Name,@{n='parentId';e={$_.Directory.fullname ?? $_.Parent.FullName}} | ConvertTo-Csv -delim "`t" -UseQuotes Never > ./delmefileTree.tsv
+        java -jar JavaFXTreeTableTSV.jar `t --column-types=string,double,string,string delmefileTree.tsv
+        
+        @'
+        id,name,parentId
+        1,root,
+        2,child,1
+        3,alsoChild,1
+        4,grandChild,2
+        5,alsoGrandChild,2
+        6,anotherRootForNoReason,
+        7,childWithDanglingParentId,999
+        '@ | java -jar JavaFXTreeTableTSV.jar , -
+    GUI:
+        Left/Right : collapse/expand selected node.
+        Shift+Left/Right : collapse/expand selected node recursively.
+        Double click on right border of column header : Fit column width to content.
+        Click on column header : Sort ascending/descending/reset.
+        Double click on url : Open url in browser.
+        * (asterisk) : Expand all.
+    """;
 
     public static class TreeNode {
         private final Map<String, Property<?>> properties = new HashMap<>();
@@ -60,15 +90,8 @@ public class DynamicTreeTableExample extends Application {
         Parameters params = getParameters();
         List<String> args = params.getUnnamed();
         Map<String,String> argsNamed = params.getNamed();
-        if (params.getRaw().size() < 2 || argsNamed.containsKey("--help")) {
-            System.err.println("Usage: java DynamicTreeTableExample <delimiter> [<idColumn> <parentColumn>] [--column-types=<columnTypes>] <file>");
-            System.err.println("columnTypes: Optional. Comma-separated list of types (string, double, boolean, url). Default: all String");
-            System.err.println("idColumn, parentColumn: Optional pair. Column names where id of node and id of parent are specified. Default: first and last columns.");
-            System.err.println("file: Path to TSV file or '-' to read from STDIN");
-            System.err.println("Examples:");
-            System.err.println("java -jar .\\target\\JavaFXTreeTableTSV-0.1-shaded.jar `t myfile.tsv");
-            System.err.println("java -jar FXTreeTableTSV.jar `t id parentId myfile.tsv");
-            System.err.println("cat myfile.tsv | java -jar FXTreeTableTSV.jar --delimiter=`t --column-types=url,string,double,string -");
+        if (params.getRaw().size() < 2 || args.contains("--help")) {
+            System.err.println(help);
             System.exit(1);
         }
 

@@ -1,23 +1,25 @@
 <project>
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>mygroup</groupId>
-    <artifactId>JavaFXTreeTableTSV</artifactId>
+    <groupId>podbrushkin</groupId>
+    <artifactId>TreeTableTsvFx</artifactId>
     <version>0.1</version>
     <packaging>jar</packaging>
 	
 	<description>
-		Usage: set javafxPlugin.mainClass and mvn javafx:run
+		Usage: 
+            mvn clean compile package -q -e
+            java -jar ./target/TreeTableTsvFx-0.1-shaded.jar --help
 		or
-		mvn clean compile exec:java '-Dexec.mainClass=DynamicTreeTableExample'
-		mvn clean compile exec:java '-Dexec.mainClass=DynamicTreeTableExample' "-Dexec.args=$tsv item parentId `t" -q -e
+            mvn clean compile exec:java '-Dexec.mainClass=TreeTableTsvFx'
+            mvn clean compile exec:java '-Dexec.mainClass=TreeTableTsvFx' "-Dexec.args=`t myfile.tsv" -q -e
 	</description>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <javafxPlugin.mainClass>DynamicTreeTableExample</javafxPlugin.mainClass>
+        <javafxPlugin.mainClass>TreeTableTsvFx</javafxPlugin.mainClass>
 		<javafxVersion>23.0.2</javafxVersion>
     </properties>
 
@@ -27,28 +29,6 @@
             <artifactId>javafx-controls</artifactId>
             <version>${javafxVersion}</version>
         </dependency>
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-web</artifactId>
-            <version>${javafxVersion}</version>
-        </dependency>
-		<dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-swing</artifactId>
-            <version>${javafxVersion}</version>
-        </dependency>
-
-        <!-- <dependency>
-            <groupId>org.controlsfx</groupId>
-            <artifactId>controlsfx</artifactId>
-            <version>11.2.1</version>
-        </dependency> -->
-        <!-- <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-            <version>2.11.0</version>
-        </dependency> -->
-
     </dependencies>
 
     <build>
@@ -57,14 +37,6 @@
               <groupId>org.apache.maven.plugins</groupId>
               <artifactId>maven-compiler-plugin</artifactId>
               <version>3.11.0</version>
-          </plugin>
-          <plugin>
-              <groupId>org.openjfx</groupId>
-              <artifactId>javafx-maven-plugin</artifactId>
-              <version>0.0.8</version>
-              <configuration>
-                  <mainClass>${javafxPlugin.mainClass}</mainClass>
-              </configuration>
           </plugin>
 
             <plugin>
