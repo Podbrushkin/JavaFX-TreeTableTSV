@@ -57,36 +57,58 @@ public class DynamicTreeTableExample extends Application {
     public void start(Stage primaryStage) {
         // Parse command-line arguments
         Parameters params = getParameters();
-        List<String> args = params.getRaw();
-        if (args.size() < 5) {
-            System.err.println("Usage: java DynamicTreeTableExample <idColumn> <parentOrChildColumn> <delimiter> <mode> <columnTypes> [file]");
-            System.err.println("Mode: 'parent' for parentId, 'child' for childId");
-            System.err.println("columnTypes: Comma-separated list of types (string, double, boolean, url)");
+        List<String> args = params.getUnnamed();
+        Map<String,String> argsNamed = params.getNamed();
+        if (params.getRaw().size() < 2 || argsNamed.containsKey("--help")) {
+            System.err.println("Usage: java DynamicTreeTableExample <delimiter> [<idColumn> <parentColumn>] [--column-types=<columnTypes>] <file>");
+            System.err.println("columnTypes: Optional. Comma-separated list of types (string, double, boolean, url). Default: all String");
+            System.err.println("idColumn, parentColumn: Optional pair. Column names where id of node and id of parent are specified. Default: first and last columns.");
             System.err.println("file: Path to TSV file or '-' to read from STDIN");
+            System.err.println("Examples:");
+            System.err.println("java -jar .\\target\\JavaFXTreeTableTSV-0.1-shaded.jar `t myfile.tsv");
+            System.err.println("java -jar FXTreeTableTSV.jar `t id parentId myfile.tsv");
+            System.err.println("cat myfile.tsv | java -jar FXTreeTableTSV.jar --delimiter=`t --column-types=url,string,double,string -");
             System.exit(1);
         }
 
-        String idColumn = args.get(0);
-        String parentOrChildColumn = args.get(1);
-        String delimiter = args.get(2);
-        String mode = args.get(3);
-        String[] columnTypes = args.get(4).split(",");
-        String filePath = args.size() > 5 ? args.get(5) : "-";
-
-        if (!mode.equals("parent") && !mode.equals("child")) {
-            System.err.println("Invalid mode. Use 'parent' or 'child'.");
-            System.exit(1);
+        
+        String delimiter = argsNamed.getOrDefault("delimiter", args.get(0));
+        
+        String idColumn = null;
+        String parentColumn = null;
+        if (args.size() >= 4) {
+            idColumn = args.get(1);
+            parentColumn = args.get(2);
+        } else if (argsNamed.containsKey("id-column") && argsNamed.containsKey("parent-column")) {
+            idColumn = argsNamed.get("id-column");
+            parentColumn = argsNamed.get("parent-column");
         }
+        String[] columnTypes = null;
+        if (argsNamed.containsKey("column-types")) {
+            columnTypes = argsNamed.get("column-types").split(",");
+        }
+         
+        String filePath = args.get(args.size()-1);
+        
 
         // Read the TSV file or STDIN
         List<TreeNode> nodes = new ArrayList<>();
         String[] headers = null;
         try (Scanner scanner = filePath.equals("-") ? new Scanner(System.in) : new Scanner(new File(filePath))) {
             if (scanner.hasNextLine()) {
-                headers = scanner.nextLine().split(delimiter, -1); // Use -1 to avoid index issues
+                headers = scanner.nextLine().split(delimiter, -1);
+                // if columnTypes haven't been provided by user, let them all be String
+                if (columnTypes == null) {
+                    columnTypes = "string,".repeat(headers.length).split(","); // genius
+                }
+                //System.out.println("columnTypes: "+Arrays.toString(columnTypes));
+                if (idColumn == null || parentColumn == null) {
+                    idColumn = headers[0];
+                    parentColumn = headers[headers.length-1];
+                }
             }
             while (scanner.hasNextLine()) {
-                String[] values = scanner.nextLine().split(delimiter, -1); // Use -1 to avoid index issues
+                String[] values = scanner.nextLine().split(delimiter, -1);
                 nodes.add(new TreeNode(headers, values, columnTypes));
             }
         } catch (FileNotFoundException e) {
@@ -103,31 +125,16 @@ public class DynamicTreeTableExample extends Application {
             nodeMap.put(((Property<?>) node.getProperty(idColumn)).getValue().toString(), treeItem);
         }
 
-        if (mode.equals("parent")) {
-            // ParentId mode: Each node specifies its parent
-            for (TreeNode node : nodes) {
-                String parentId = ((Property<?>) node.getProperty(parentOrChildColumn)).getValue().toString();
-                if (parentId != null && !parentId.isEmpty()) {
-                    TreeItem<TreeNode> parent = nodeMap.get(parentId);
-                    if (parent != null) {
-                        parent.getChildren().add(nodeMap.get(((Property<?>) node.getProperty(idColumn)).getValue().toString()));
-                    }
-                } else {
-                    root.getChildren().add(nodeMap.get(((Property<?>) node.getProperty(idColumn)).getValue().toString()));
+        
+        for (TreeNode node : nodes) {
+            String parentId = ((Property<?>) node.getProperty(parentColumn)).getValue().toString();
+            if (parentId != null && !parentId.isEmpty()) {
+                TreeItem<TreeNode> parent = nodeMap.get(parentId);
+                if (parent != null) {
+                    parent.getChildren().add(nodeMap.get(((Property<?>) node.getProperty(idColumn)).getValue().toString()));
                 }
-            }
-        } else {
-            // ChildId mode: Each node specifies its children
-            for (TreeNode node : nodes) {
-                String childIds = ((Property<?>) node.getProperty(parentOrChildColumn)).getValue().toString();
-                if (childIds != null && !childIds.isEmpty()) {
-                    for (String childId : childIds.split(",")) {
-                        TreeItem<TreeNode> child = nodeMap.get(childId.trim());
-                        if (child != null) {
-                            nodeMap.get(((Property<?>) node.getProperty(idColumn)).getValue().toString()).getChildren().add(child);
-                        }
-                    }
-                }
+            } else {
+                root.getChildren().add(nodeMap.get(((Property<?>) node.getProperty(idColumn)).getValue().toString()));
             }
         }
 
@@ -135,9 +142,6 @@ public class DynamicTreeTableExample extends Application {
         TreeTableView<TreeNode> treeTableView = new TreeTableView<>(root);
         treeTableView.setShowRoot(false);
         
-		//treeTableView.getEventHandlers().forEach(System.out::println);
-		//System.out.println(treeTableView.getOnKeyTyped());
-
         // Create columns dynamically based on headers
         for (int i = 0; i < headers.length; i++) {
             String header = headers[i];
