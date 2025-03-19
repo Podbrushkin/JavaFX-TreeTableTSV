@@ -11,6 +11,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.*;
 import java.net.URI;
+import java.nio.file.Path;
 
 public class DynamicTreeTableExample extends Application {
 
@@ -94,10 +95,10 @@ public class DynamicTreeTableExample extends Application {
         // Read the TSV file or STDIN
         List<TreeNode> nodes = new ArrayList<>();
         String[] headers = null;
-        try (Scanner scanner = filePath.equals("-") ? new Scanner(System.in) : new Scanner(new File(filePath))) {
+        try (Scanner scanner = filePath.equals("-") ? new Scanner(System.in) : new Scanner(Path.of(filePath).toAbsolutePath().toFile())) {
             if (scanner.hasNextLine()) {
                 headers = scanner.nextLine().split(delimiter, -1);
-                // if columnTypes haven't been provided by user, let them all be String
+                // If columnTypes haven't been provided by user, let them all be String
                 if (columnTypes == null) {
                     columnTypes = "string,".repeat(headers.length).split(","); // genius
                 }
@@ -120,21 +121,27 @@ public class DynamicTreeTableExample extends Application {
         Map<String, TreeItem<TreeNode>> nodeMap = new HashMap<>();
         TreeItem<TreeNode> root = new TreeItem<>(new TreeNode(headers, new String[headers.length], columnTypes));
 
+        // Add all nodes
         for (TreeNode node : nodes) {
             TreeItem<TreeNode> treeItem = new TreeItem<>(node);
             nodeMap.put(((Property<?>) node.getProperty(idColumn)).getValue().toString(), treeItem);
         }
 
-        
+        // Add all parent-child relationships
         for (TreeNode node : nodes) {
+            String nodeId = ((Property<?>) node.getProperty(idColumn)).getValue().toString();
             String parentId = ((Property<?>) node.getProperty(parentColumn)).getValue().toString();
+            TreeItem<TreeNode> parent = null;
             if (parentId != null && !parentId.isEmpty()) {
-                TreeItem<TreeNode> parent = nodeMap.get(parentId);
-                if (parent != null) {
-                    parent.getChildren().add(nodeMap.get(((Property<?>) node.getProperty(idColumn)).getValue().toString()));
-                }
+                parent = nodeMap.get(parentId);
+            }
+            if (parent != null) {
+                parent.getChildren().add(nodeMap.get(nodeId));
             } else {
-                root.getChildren().add(nodeMap.get(((Property<?>) node.getProperty(idColumn)).getValue().toString()));
+                //System.out.println("Found a parentId without a row: "+parentId);
+                // Dangling parentId's are treated as if they're empty
+                // (nodes with such parentId are considered to be root)
+                root.getChildren().add(nodeMap.get(nodeId));
             }
         }
 
