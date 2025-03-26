@@ -6,8 +6,8 @@ java -jar ./target/TreeTableTsvFx-0.1-shaded.jar --help
 ```
 ![treetabletsvfx2](https://github.com/user-attachments/assets/6e4d68ef-f2fc-45fd-b7c7-f38bdc65281b)
 
-## Examples
-Get children of Genghis Khan (bash):
+## Examples (bash)
+Get children of Genghis Khan
 ```bash
 read -r -d '' sparql <<'EOF'
 PREFIX gas: <http://www.bigdata.com/rdf/gas#>
@@ -50,4 +50,40 @@ id,name,parentId
 EOF
 echo -e "$csv" > data.csv
 java -jar target/TreeTableTsvFx-0.1-shaded.jar , data.csv
+```
+## Examples (powershell)
+Get descendants of a person from Wikidata
+```powershell
+$sparql = @'
+#defaultView:Graph
+# Descendants of a person
+PREFIX gas: <http://www.bigdata.com/rdf/gas#>
+
+SELECT ?item ?itemLabel (SAMPLE(YEAR(?birthDate)) AS ?birthYear) (SAMPLE(YEAR(?deathDate)) AS ?deathYear) ?links ?parent
+WHERE {
+  SERVICE gas:service {
+    gas:program gas:gasClass "com.bigdata.rdf.graph.analytics.SSSP" ;
+                gas:in wd:Q9439 ; # Q9439=Victoria Q130734=NicholasI
+                gas:traversalDirection "Forward" ;
+                gas:out ?item ;
+                gas:out1 ?depth ;
+                gas:out2 ?parent ;
+                gas:maxIterations 4 ;   # Depth
+                gas:linkType wdt:P40 .
+  }
+  OPTIONAL { ?item wdt:P569 ?birthDate. }
+  OPTIONAL { ?item wdt:P570 ?deathDate. }
+  OPTIONAL { ?item wikibase:sitelinks ?links. }
+  #OPTIONAL { ?item wdt:P40 ?linkTo }
+  #OPTIONAL { ?item wdt:P18 ?pic }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "mul,en,ru" }
+}
+GROUP BY ?item ?itemLabel ?links ?parent
+'@
+Invoke-RestMethod -Uri https://query.wikidata.org/sparql -Body @{query=$sparql} -Headers @{
+#   "Content-Type" = "application/sparql-query"
+   "Accept" = "text/csv"
+} | ConvertFrom-Csv | 
+    ConvertTo-Csv -Delimiter "`t" -UseQuotes Never | 
+    java -jar .\target\TreeTableTsvFx-0.1-shaded.jar `t --column-types=url,string,double,double,double,url -
 ```

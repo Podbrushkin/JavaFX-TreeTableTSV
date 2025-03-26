@@ -189,9 +189,9 @@ public class TreeTableTsvFx extends Application {
 						protected void updateItem(Number item, boolean empty) {
 							super.updateItem(item, empty);
 							if (empty || item == null) {
-								setText(""); // Render empty cells as blank
+								setText(""); // Render empty cells as
 							} else if (Double.isNaN(item.doubleValue())) {
-								setText(""); // Render NaN values as "NaN"
+								setText(""); // Render NaN values as
 							} else {
 								// Display the number as-is (e.g., 10 instead of 10.0 for integers)
 								if (item.doubleValue() == item.intValue()) {
@@ -281,7 +281,7 @@ public class TreeTableTsvFx extends Application {
         Scene scene = new Scene(rootPane, 800, 600);
 
         // Set up the stage
-        primaryStage.setTitle("Dynamic TreeTable from TSV");
+        primaryStage.setTitle("TreeTableTsvFx");
         primaryStage.setScene(scene);
         primaryStage.show();
     }
