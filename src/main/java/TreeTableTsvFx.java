@@ -88,25 +88,17 @@ public class TreeTableTsvFx extends Application {
     public void start(Stage primaryStage) {
         // Parse command-line arguments
         Parameters params = getParameters();
-        List<String> args = params.getUnnamed();
+        LinkedList<String> args = new LinkedList<String>(params.getUnnamed());
         Map<String,String> argsNamed = params.getNamed();
         if (params.getRaw().size() < 2 || args.contains("--help")) {
             System.err.println(help);
             System.exit(1);
         }
-
         
-        String delimiter = argsNamed.getOrDefault("delimiter", args.get(0));
+        String delimiter = argsNamed.containsKey("delimiter") ? argsNamed.get("delimiter") : args.removeFirst();
+        String idColumn = argsNamed.containsKey("id-column") ? argsNamed.get("id-column") : args.removeFirst();
+        String parentColumn = argsNamed.containsKey("parent-column") ? argsNamed.get("parent-column") : args.removeFirst();
         
-        String idColumn = null;
-        String parentColumn = null;
-        if (args.size() >= 4) {
-            idColumn = args.get(1);
-            parentColumn = args.get(2);
-        } else if (argsNamed.containsKey("id-column") && argsNamed.containsKey("parent-column")) {
-            idColumn = argsNamed.get("id-column");
-            parentColumn = argsNamed.get("parent-column");
-        }
         String[] columnTypes = null;
         if (argsNamed.containsKey("column-types")) {
             columnTypes = argsNamed.get("column-types").split(",");
@@ -115,29 +107,50 @@ public class TreeTableTsvFx extends Application {
         String filePath = args.get(args.size()-1);
         
 
-        // Read the TSV file or STDIN
+        
         List<TreeNode> nodes = new ArrayList<>();
         String[] headers = null;
+
+        // Read the file or STDIN
+        List<String[]> data = new ArrayList<>();
         try (Scanner scanner = filePath.equals("-") ? new Scanner(System.in) : new Scanner(Path.of(filePath).toAbsolutePath().toFile())) {
             if (scanner.hasNextLine()) {
                 headers = scanner.nextLine().split(delimiter, -1);
-                // If columnTypes haven't been provided by user, let them all be String
-                if (columnTypes == null) {
-                    columnTypes = "string,".repeat(headers.length).split(","); // genius
-                }
-                //System.out.println("columnTypes: "+Arrays.toString(columnTypes));
-                if (idColumn == null || parentColumn == null) {
-                    idColumn = headers[0];
-                    parentColumn = headers[headers.length-1];
-                }
+                columnTypes = new String[headers.length];
             }
             while (scanner.hasNextLine()) {
-                String[] values = scanner.nextLine().split(delimiter, -1);
-                nodes.add(new TreeNode(headers, values, columnTypes));
+                data.add(scanner.nextLine().split(delimiter, -1));
             }
         } catch (FileNotFoundException e) {
             System.err.println("File not found: " + filePath);
             System.exit(1);
+        }
+
+        // Default id and parent id columns - first and last
+        if (idColumn == null || parentColumn == null) {
+            idColumn = headers[0];
+            parentColumn = headers[headers.length-1];
+        }
+
+        // Fill column types if they're not provided
+        for (int i = 0; i < columnTypes.length; i++) {
+            if (columnTypes[i] == null) {
+                // Find first non-empty value in this column
+                final int i_ = i;
+                String sample = data.stream()
+                    .map(arr -> arr[i_])
+                    .filter(val -> val != null && !val.isEmpty())
+                    .findFirst().orElse("");
+                
+                // Determine type based on sample
+                columnTypes[i] = sample.matches("^https?://.+") ? "url" : 
+                                sample.matches("-?\\d+(\\.\\d+)?") ? "double" : 
+                                "string";
+            }
+        }
+        
+        for (String[] values : data) {
+            nodes.add(new TreeNode(headers, values, columnTypes));
         }
 
         // Build the tree structure
@@ -205,15 +218,6 @@ public class TreeTableTsvFx extends Application {
 					doubleColumn.setSortable(true);
 					treeTableView.getColumns().add(doubleColumn);
 					break;
-                case "boolean":
-                    TreeTableColumn<TreeNode, Boolean> booleanColumn = new TreeTableColumn<>(header);
-                    booleanColumn.setCellValueFactory(param -> {
-                        Property<?> property = param.getValue().getValue().getProperty(header);
-                        return (ObservableValue<Boolean>) property;
-                    });
-                    booleanColumn.setSortable(true);
-                    treeTableView.getColumns().add(booleanColumn);
-                    break;
                 case "url":
                     TreeTableColumn<TreeNode, String> urlColumn = new TreeTableColumn<>(header);
                     urlColumn.setCellValueFactory(param -> {
