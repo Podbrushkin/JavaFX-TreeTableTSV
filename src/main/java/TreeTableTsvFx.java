@@ -94,17 +94,21 @@ public class TreeTableTsvFx extends Application {
             System.err.println(help);
             System.exit(1);
         }
+
+        String filePath = args.removeLast();
         
         String delimiter = argsNamed.containsKey("delimiter") ? argsNamed.get("delimiter") : args.removeFirst();
-        String idColumn = argsNamed.containsKey("id-column") ? argsNamed.get("id-column") : args.removeFirst();
-        String parentColumn = argsNamed.containsKey("parent-column") ? argsNamed.get("parent-column") : args.removeFirst();
+        String idColumn = argsNamed.containsKey("id-column") ? argsNamed.get("id-column") : 
+           args.size() > 0 ? args.removeFirst() : null;
+        String parentColumn = argsNamed.containsKey("parent-column") ? argsNamed.get("parent-column") : 
+            args.size() > 0 ? args.removeFirst() : null;
         
         String[] columnTypes = null;
         if (argsNamed.containsKey("column-types")) {
             columnTypes = argsNamed.get("column-types").split(",");
         }
          
-        String filePath = args.get(args.size()-1);
+        
         
 
         
